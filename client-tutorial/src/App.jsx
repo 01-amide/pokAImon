@@ -1,5 +1,4 @@
-// ⏸️ WORKSHOP STEP 1: Set Up Routing
-// TODO: Import Routes and Route from 'react-router-dom'
+import { Routes, Route } from "react-router-dom";
 
 // ⏸️ WORKSHOP STEP 7: Add Suspense and Lazy Loading
 // TODO: Import lazy and Suspense from 'react'
@@ -31,12 +30,10 @@ export default function App() {
           {/* TODO: Add Routes with Route elements for "/" and "/gallery" */}
 
           {/* Placeholder - replace with routing */}
-          <div className="text-center text-gray-600 dark:text-gray-400 mt-20">
-            <h1 className="text-3xl font-bold mb-4">
-              Welcome to PokAImon Generator!
-            </h1>
-            <p>Complete Workshop Step 2 to set up routing</p>
-          </div>
+          <Routes>
+            <Route path="/" element={<GeneratorPage />} />
+            <Route path="/gallery" element={<GalleryPage />} />
+          </Routes>
         </main>
       </div>
     </ApiKeyProvider>
