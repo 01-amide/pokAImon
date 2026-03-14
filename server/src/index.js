@@ -90,7 +90,7 @@ app.get('/api/gallery', async (_req, res) => {
 
 app.post('/api/generate', async (req, res) => {
   try {
-    const { doodle_data, gemini_api_key } = req.body || {};
+    const { doodle_data } = req.body || {};
     if (!doodle_data || typeof doodle_data !== 'string') {
       return res.status(400).json({ error: 'doodle_data (base64) is required' });
     }
@@ -98,7 +98,7 @@ app.post('/api/generate', async (req, res) => {
     try {
       // Attempt real AI generation if configured
       // 1) Generate the base image from the doodle
-      const imgB64 = await generateImageFromDoodle(doodle_data, gemini_api_key);
+      const imgB64 = await generateImageFromDoodle(doodle_data);
       
       // Save image as file instead of using data URL
       const imageUrl = saveBase64Image(imgB64, 'pokemon');
@@ -106,7 +106,7 @@ app.post('/api/generate', async (req, res) => {
       // 2) Generate metadata using the produced image as reference for higher accuracy
       const meta = await generatePokemonMeta(
         'Design an original battle-creature matching the reference. Use allowed types and include the name in each power description.',
-        { baseImageDataUrl: `data:image/png;base64,${imgB64}`, apiKey: gemini_api_key }
+        { baseImageDataUrl: `data:image/png;base64,${imgB64}`}
       );
 
       const normalizedPowers = Array.isArray(meta?.powers)
@@ -166,10 +166,10 @@ app.post('/api/generate', async (req, res) => {
       return res.json(saved);
     }
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Failed to generate' });
+    console.error('[generate] outer error:', e.message, e.stack);
+    res.status(500).json({ error: e.message || 'Failed to generate' });
   }
-});
+}) ;
 
 app.patch('/api/pokaimon/:id/like', async (req, res) => {
   try {
@@ -200,7 +200,7 @@ app.post('/api/pokaimon/:id/action-image', async (req, res) => {
   try {
     const id = Number(req.params.id)
     if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid id' })
-    const { power, force, gemini_api_key } = req.body || {}
+    const { power, force,} = req.body || {}
     const powerName = typeof power === 'string' ? power : power?.name
     const powerDesc = typeof power === 'object' ? power?.description : undefined
     if (!powerName) return res.status(400).json({ error: 'power (name) required' })
@@ -221,7 +221,6 @@ app.post('/api/pokaimon/:id/action-image', async (req, res) => {
         name: pokemon.name,
         type: pokemon.type,
         characteristics: pokemon.characteristics,
-        apiKey: gemini_api_key,
       },
       { name: powerName, description: powerDesc }
     )
@@ -250,3 +249,5 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });
+
+

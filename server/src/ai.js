@@ -1,133 +1,101 @@
-import { GoogleGenAI, Type } from '@google/genai'
-
-const IMAGE_MODEL = 'gemini-2.5-flash-image-preview'
-const TEXT_MODEL = 'gemini-flash-lite-latest'
 const ALLOWED_TYPES = [
   'Normal','Fire','Water','Grass','Electric','Ice','Fighting','Poison','Ground','Flying','Psychic','Bug','Rock','Ghost','Dragon','Dark','Steel','Fairy'
 ]
 
-function getClient(apiKeyOverride = null) {
-  // Allow client to provide API key, otherwise use env var
-  const apiKey = apiKeyOverride || process.env.GEMINI_API_KEY
-  if (!apiKey) return null
-  try {
-    return new GoogleGenAI({ apiKey })
-  } catch {
-    return null
+const HF_IMAGE_MODEL = 'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-refiner-1.0'
+const HF_TEXT_MODEL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3'
+
+async function hfFetch(url, body, isJson = false) {
+  const hfKey = process.env.HUGGINGFACE_API_KEY
+  if (!hfKey) throw new Error('HUGGINGFACE_API_KEY missing')
+
+  const isFormData = body instanceof FormData
+  const headers = { Authorization: `Bearer ${hfKey}` }
+  if (isJson) headers['Content-Type'] = 'application/json'
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: isFormData ? body : JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`HuggingFace error: ${err}`)
   }
+
+  return response
 }
 
-export async function generateImageFromDoodle(base64Png, apiKey = null) {
-  const ai = getClient(apiKey)
-  if (!ai) throw new Error('GEMINI_API_KEY missing')
+export async function generateImageFromDoodle(base64Png) {
+  const prompt = [
+    'A high quality illustration of an original battle creature.',
+    'Pokemon-style battle arena background with wooden floor, stadium seating, dramatic spotlights.',
+    'Vibrant colors, detailed, lively creature illustration.',
+    'No solid color backgrounds, no green screen.',
+  ].join(' ')
 
-  const contents = [
+  const negativePrompt = [
+    'solid color background, green screen, blank background,',
+    'blurry, low quality, sketch, doodle, stick figure,',
+    'text, watermark, ugly, deformed',
+  ].join(' ')
+
+  const imageBytes = Buffer.from(base64Png, 'base64')
+  const blob = new Blob([imageBytes], { type: 'image/png' })
+
+  const form = new FormData()
+  form.append('prompt', prompt)
+  form.append('negative_prompt', negativePrompt)
+  form.append('image', blob, 'doodle.png')
+  form.append('strength', '0.85')
+  form.append('num_inference_steps', '30')
+  form.append('guidance_scale', '7.5')
+
+  const response = await hfFetch(HF_IMAGE_MODEL, form)
+  const arrayBuffer = await response.arrayBuffer()
+  return Buffer.from(arrayBuffer).toString('base64')
+}
+
+export async function generatePokemonMeta(promptText, { baseImageDataUrl } = {}) {
+  const systemPrompt = `You are a Pokemon-style creature designer. Always respond with valid JSON only, no markdown, no backticks, no explanation.`
+
+  const userPrompt = [
+    'Design a new original battle-creature.',
+    'Return a JSON object with exactly these fields:',
+    '- name: short memorable name (string)',
+    `- type: array of 1-2 types from this list only: ${ALLOWED_TYPES.join(', ')}`,
+    '- characteristics: one sentence personality/appearance (string)',
+    '- powers: array of 2 objects each with "name" (string) and "description" (string)',
+    'In each power description write in third person using the creature name explicitly.',
+    'Do not use "the user" or "the creature".',
+    'Return JSON only, nothing else.',
+  ].join(' ')
+
+  const response = await hfFetch(
+    HF_TEXT_MODEL,
     {
-      role: 'user',
-      parts: [
-        {
-          text: [
-            'Create a high-quality PNG of an original battle-creature based on this doodle.',
-            'Keep the same character identity, colors, and silhouette, but polish proportions and details.',
-            'Scene: spotlighted in a stylized creature arena with subtle stadium lighting, boundary lines, and a soft bokeh crowd.',
-            'Keep the background clean and readable (arena context, shallow depth of field).',
-            'Do not depict a plush/toy or fabric; render a lively creature illustration.',
-            'Return only the image.',
-          ].join(' '),
-        },
-        { inlineData: { mimeType: 'image/png', data: base64Png } },
-      ],
-    },
-  ]
-
-  const config = {
-    // Ask for image output
-    responseModalities: ['IMAGE'],
-  }
-
-  const resp = await ai.models.generateContent({ model: IMAGE_MODEL, contents, config })
-  const candidate = resp?.candidates?.[0]
-  const part = candidate?.content?.parts?.find((p) => p.inlineData)
-  const data = part?.inlineData?.data
-  if (!data) throw new Error('No image data from Gemini')
-  return data // base64 (png)
-}
-
-export async function generatePokemonMeta(promptText, { baseImageDataUrl, apiKey } = {}) {
-  const ai = getClient(apiKey)
-  if (!ai) throw new Error('GEMINI_API_KEY missing')
-
-  const config = {
-    thinkingConfig: { thinkingBudget: 0 },
-    responseMimeType: 'application/json',
-    responseSchema: {
-      type: Type.OBJECT,
-      required: ['characteristics', 'type', 'name', 'powers'],
-      properties: {
-        characteristics: { type: Type.STRING },
-        // Return 1 or 2 types from the allowed list
-        type: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING, enum: ALLOWED_TYPES },
-          minItems: 1,
-          maxItems: 2,
-        },
-        name: { type: Type.STRING },
-        powers: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            required: ['name', 'description'],
-            properties: {
-              name: { type: Type.STRING },
-              description: { type: Type.STRING },
-            },
-          },
-        },
+      inputs: `<s>[INST] ${systemPrompt}\n\n${userPrompt} [/INST]`,
+      parameters: {
+        max_new_tokens: 400,
+        temperature: 0.7,
+        return_full_text: false,
       },
     },
-  }
+    true
+  )
 
-  const parts = [
-    {
-      text: [
-        promptText || 'Design a new original battle-creature based on the provided reference.',
-        'Return JSON only. Fields: name (short, memorable),',
-        'type (1–2 values from the allowed list; do not invent new types; do not use "Doodle"),',
-        'characteristics (one sentence personality/appearance),',
-        'powers (array of {name, description}).',
-        'In each power.description, write in third person using the character\'s generated name explicitly (e.g., "<NAME> unleashes ..."), never "the user" or "the creature".',
-      ].join(' '),
-    },
-  ]
+  const json = await response.json()
+  const text = json[0]?.generated_text || ''
 
-  // If an image data URL is provided, include it as reference
-  if (baseImageDataUrl && baseImageDataUrl.startsWith('data:image/')) {
-    const i = baseImageDataUrl.indexOf(',')
-    const b64 = i > -1 ? baseImageDataUrl.slice(i + 1) : null
-    if (b64) parts.push({ inlineData: { mimeType: 'image/png', data: b64 } })
-  }
-
-  const contents = [
-    {
-      role: 'user',
-      parts,
-    },
-  ]
-
-  const resp = await ai.models.generateContent({ model: TEXT_MODEL, contents, config })
-  // SDK returns text content containing JSON
-  const text = resp?.text || resp?.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error('No text from Gemini')
-  const parsed = JSON.parse(text)
+  // Extract JSON from response
+  const match = text.match(/\{[\s\S]*\}/)
+  if (!match) throw new Error('No JSON in response')
+  const parsed = JSON.parse(match[0])
   return parsed
 }
 
-export async function generateActionImage({ baseImageDataUrl, name, type, characteristics, apiKey }, power) {
-  const ai = getClient(apiKey)
-  if (!ai) throw new Error('GEMINI_API_KEY missing')
-
-  // Extract base64 from data URL if available
+export async function generateActionImage({ baseImageDataUrl, name, type, characteristics }, power) {
   let base64Img = null
   if (baseImageDataUrl && baseImageDataUrl.startsWith('data:image/')) {
     const i = baseImageDataUrl.indexOf(',')
@@ -155,28 +123,31 @@ export async function generateActionImage({ baseImageDataUrl, name, type, charac
   ]
   const pose = POSES[Math.floor(Math.random() * POSES.length)]
 
-  const actionText = [
-    `Create a high-quality PNG of the same original battle-creature performing the action "${power?.name || 'Unknown'}".`,
-    power?.description ? `Action details: ${power.description}.` : '',
-    `Appearance guide — Name: ${name || 'Unknown'}, Type(s): ${Array.isArray(type) ? type.join('/') : (type || 'Unknown')}. ${characteristics || ''}`,
-    `IMPORTANT: DO NOT USE THE SAME CAMERA ANGLE OR POSE AS THE REFERENCE. Change the camera by at least 45 degrees and use this framing: ${angle}.`,
-    `Pose cue: ${pose}. Recompose the shot so the creature is in a different screen position (rule-of-thirds acceptable). Alter pose/orientation to communicate motion (limbs extended, torso twisted).`,
-    'Scene: stylized creature arena with stadium lighting and boundary lines; shallow depth of field.',
-    'The creature should be attacking a sillhoute/stick figure opponent with the move and the opponent should be impacted by the action.',
+  const prompt = [
+    `A high quality illustration of a battle creature called ${name || 'Unknown'} performing ${power?.name || 'an attack'}.`,
+    power?.description ? `Action: ${power.description}.` : '',
+    `Type: ${Array.isArray(type) ? type.join('/') : (type || 'Unknown')}. ${characteristics || ''}`,
+    `Camera: ${angle}. Pose: ${pose}.`,
+    'Pokemon-style battle arena, stadium lighting, boundary lines, shallow depth of field.',
+    'Vibrant colors, detailed illustration, no solid color backgrounds.',
   ].join(' ')
 
-  const parts = [{ text: actionText }]
+  const negativePrompt = 'solid color background, blurry, low quality, text, watermark, ugly, deformed'
+
+  const form = new FormData()
+  form.append('prompt', prompt)
+  form.append('negative_prompt', negativePrompt)
+  form.append('num_inference_steps', '30')
+  form.append('guidance_scale', '7.5')
+
   if (base64Img) {
-    parts.push({ inlineData: { mimeType: 'image/png', data: base64Img } })
+    const imageBytes = Buffer.from(base64Img, 'base64')
+    const blob = new Blob([imageBytes], { type: 'image/png' })
+    form.append('image', blob, 'creature.png')
+    form.append('strength', '0.75')
   }
 
-  const contents = [{ role: 'user', parts }]
-  const config = { responseModalities: ['IMAGE'], generationConfig: { temperature: 0.9 } }
-
-  const resp = await ai.models.generateContent({ model: IMAGE_MODEL, contents, config })
-  const candidate = resp?.candidates?.[0]
-  const part = candidate?.content?.parts?.find((p) => p.inlineData)
-  const data = part?.inlineData?.data
-  if (!data) throw new Error('No image data from Gemini for action')
-  return data
+  const response = await hfFetch(HF_IMAGE_MODEL, form)
+  const arrayBuffer = await response.arrayBuffer()
+  return Buffer.from(arrayBuffer).toString('base64')
 }

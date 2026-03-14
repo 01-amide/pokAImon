@@ -1,50 +1,96 @@
-// ⏸️ WORKSHOP STEP 2: Add Basic State
-// TODO: Import useState from'react'
+import { useState } from "react";
 import Canvas from "../components/Canvas.jsx";
 import Spinner from "../components/Spinner.jsx";
 
 const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
+app.post('/api/generate', async (req, res) => {
+  console.log('[generate] hit') });
+// const canvas = document.querySelector("canvas");
+// const imageData = canvas.toDataURL("image/png");
+
 export default function GeneratorPage() {
-  // ⏸️ WORKSHOP STEP 2: Define state variables
-  // TODO: Add state for: isGenerating, error, lastResult
-  // const [isGenerating, setIsGenerating] = useState(false)
-  // const [error, setError] = useState(null)
-  // const [lastResult, setLastResult] = useState(null)
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState(null);
+  const [lastResult, setLastResult] = useState(null);
 
   const handleGenerate = async (base64) => {
-    // ⏸️ WORKSHOP STEP 2: Implement API call with state management
-    /* TODO: Implement this function:
-      1. Set isGenerating to true
-      2. Clear any previous errors
-      3. Make POST request to ${API}/api/generate with { doodle_data: base64 }
-      4. Handle response and update lastResult
-      5. Handle errors
-      6. Finally, set isGenerating to false
-    */
-    console.log("TODO: Implement generate function", base64);
+    try {
+      setIsGenerating(true);
+      setError(null);
+      const res = await fetch(`${API}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doodle_data: base64 }),
+      });
+      if (!res.ok) throw new Error("Failed to generate");
+      const json = await res.json();
+      setLastResult(json);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
-      <Canvas
-        onGenerate={handleGenerate}
-        disabled={false /* TODO: Use isGenerating */}
-      />
+      <Canvas onGenerate={handleGenerate} disabled={isGenerating} />
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg flex flex-col items-center justify-center transition-colors">
         <h2 className="text-xl font-semibold mb-4 text-center text-gray-900 dark:text-white">
           PokAImon Result
         </h2>
         <div className="relative w-full aspect-square border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-center bg-gray-50 dark:bg-gray-700 overflow-hidden p-2">
-          {/* TODO: Add conditional rendering based on state */}
-          <div className="text-center text-gray-500 dark:text-gray-400">
-            <p>Your generated PokAImon will appear here.</p>
-          </div>
+          {!lastResult && !isGenerating && (
+            <div className="text-center text-gray-500 dark:text-gray-400">
+              <p>Your generated PokAImon will appear here.</p>
+            </div>
+          )}
+          {isGenerating && <Spinner label="Generating your Pokémon…" />}
+          {lastResult && !isGenerating && (
+            <img
+              src={`${API}${lastResult.image_url}`}
+              alt={lastResult.name}
+              className="object-contain w-full h-full"
+            />
+          )}
         </div>
-        {/* TODO: Display error if present */}
-        {/* TODO: Display lastResult details if present */}
+        {
+  error && (
+    <div className="mt-4 text-red-500 dark:text-red-400 text-sm text-center">
+      {error}
+    </div>
+  )
+}
+{
+  lastResult && (
+    <div className="w-full mt-4 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        {lastResult.name}
+      </h3>
+      {lastResult.type && (
+      <span className="text-xs px-2 py-1 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200">
+        {Array.isArray(lastResult.type)
+          ? lastResult.type.join(" / ")
+          : lastResult.type}
+      </span>
+    )}
+      {lastResult.characteristics && (
+        <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+          {lastResult.characteristics}
+        </p>
+      )}
+    </div>
+  )
+}
       </div>
     </div>
+
+    
   );
+
+  
 }
+
+
