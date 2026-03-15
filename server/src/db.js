@@ -4,9 +4,7 @@ const { Pool } = pkg;
 
 export class Database {
   constructor({ url }) {
-    if (!url) {
-      throw new Error('DATABASE_URL is required');
-    }
+    this.url = url;
     this.pool = new Pool({
       connectionString: this.url,
       ssl: {
