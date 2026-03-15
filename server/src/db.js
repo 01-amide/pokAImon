@@ -11,6 +11,12 @@ export class Database {
     this.pool = new Pool({
       connectionString: this.url,
     });
+    this.pool = new Pool({
+      connectionString: this.url,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    });
   }
 
   async connect() {
