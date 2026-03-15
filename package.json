@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "cd server && npm run build-client",
+    "build": "cd server && npm install && npm run build-client",
     "start": "cd server && npm start"
   },
   "postinstall": "cd server && npm install",
