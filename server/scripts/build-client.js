@@ -23,7 +23,22 @@ if (!fs.existsSync(CLIENT_DIR)) {
   process.exit(1);
 }
 
-// Step 2: Build the client
+// Step 2: Install client dependencies (needed on fresh deploys like Railway)
+console.log('📦 Installing client-tutorial dependencies (if needed)...');
+try {
+  const hasLockFile = fs.existsSync(join(CLIENT_DIR, 'package-lock.json'));
+  const installCmd = hasLockFile ? 'npm ci' : 'npm install';
+  execSync(installCmd, {
+    cwd: CLIENT_DIR,
+    stdio: 'inherit'
+  });
+  console.log('✅ Dependencies installed!\n');
+} catch (error) {
+  console.error('❌ Installing client dependencies failed!');
+  process.exit(1);
+}
+
+// Step 3: Build the client
 console.log('📦 Building client-tutorial...');
 try {
   execSync('npm run build', {
@@ -36,7 +51,7 @@ try {
   process.exit(1);
 }
 
-// Step 3: Check if build directory exists
+// Step 4: Check if build directory exists
 if (!fs.existsSync(BUILD_DIR)) {
   console.error('❌ Error: Build directory not found!');
   console.error(`   Expected: ${BUILD_DIR}`);
