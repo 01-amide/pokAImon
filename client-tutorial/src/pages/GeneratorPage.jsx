@@ -4,11 +4,6 @@ import Spinner from "../components/Spinner.jsx";
 
 const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
-app.post('/api/generate', async (req, res) => {
-  console.log('[generate] hit') });
-// const canvas = document.querySelector("canvas");
-// const imageData = canvas.toDataURL("image/png");
-
 export default function GeneratorPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
