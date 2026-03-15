@@ -3,6 +3,7 @@
     "build": "cd server && npm run build-client",
     "start": "cd server && npm start"
   },
+  "postinstall": "cd server && npm install",
   "dependencies": {
     "@google/generative-ai": "^0.24.1"
   }
