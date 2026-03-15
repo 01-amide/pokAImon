@@ -3,7 +3,7 @@
 // TODO: Import useMemo from 'react' for Step 6
 import Spinner from "../components/Spinner.jsx";
 
-const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+const API = import.meta.env.VITE_BACKEND_URL ?? (import.meta.env.DEV ? "http://localhost:3001" : "");
 
 export default function GalleryPage() {
   // ⏸️ WORKSHOP STEP 4: Use Custom Hook

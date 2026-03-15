@@ -2,7 +2,7 @@ import { useState } from "react";
 import Canvas from "../components/Canvas.jsx";
 import Spinner from "../components/Spinner.jsx";
 
-const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+const API = import.meta.env.VITE_BACKEND_URL ?? (import.meta.env.DEV ? "http://localhost:3001" : "");
 
 export default function GeneratorPage() {
   const [isGenerating, setIsGenerating] = useState(false);

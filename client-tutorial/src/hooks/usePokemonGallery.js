@@ -1,7 +1,7 @@
 // ⏸️ WORKSHOP STEP 4: Create Custom Hook
 // TODO: Import useEffect, useState, useCallback
 
-const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+const API = import.meta.env.VITE_BACKEND_URL ?? (import.meta.env.DEV ? "http://localhost:3001" : "");
 
 export function usePokemonGallery() {
   /* TODO: Implement custom hook
