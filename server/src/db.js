@@ -7,10 +7,6 @@ export class Database {
     if (!url) {
       throw new Error('DATABASE_URL is required');
     }
-    this.url = url;
-    this.pool = new Pool({
-      connectionString: this.url,
-    });
     this.pool = new Pool({
       connectionString: this.url,
       ssl: {
