@@ -2,8 +2,8 @@ const ALLOWED_TYPES = [
   'Normal','Fire','Water','Grass','Electric','Ice','Fighting','Poison','Ground','Flying','Psychic','Bug','Rock','Ghost','Dragon','Dark','Steel','Fairy'
 ]
 
-const HF_IMAGE_MODEL = 'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-refiner-1.0'
-const HF_TEXT_MODEL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3'
+const HF_IMAGE_MODEL = 'https://router.huggingface.co/models/stabilityai/stable-diffusion-xl-refiner-1.0'
+const HF_TEXT_MODEL = 'https://router.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3'
 
 async function hfFetch(url, body, isJson = false) {
   const hfKey = process.env.HUGGINGFACE_API_KEY
